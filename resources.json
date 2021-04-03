@@ -1,16 +1,30 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
-    "parameters": {},
+    "parameters": {
+        "prefix": {
+            "type": "string",
+            "metadata": {
+                "description": "Prefix to use for Unique name generation"
+            }
+        }
+    },
     "functions": [],
-    "variables": {},
+    "variables": {
+        "storageaccountname": "[concat(parameters('prefix'),'stg')]",
+        "cosmosaccountname": "[concat(parameters('prefix'),'db')]",
+        "functionappname": "[concat(parameters('prefix'),'fn')]",
+        "cdnprofilename": "[concat(parameters('prefix'),'cdn')]",
+        "cdnendpointname": "[concat(parameters('prefix'),'endpoint')]",
+        "serverfarmname": "[concat(parameters('prefix'),'farm')]"
+    },
     "resources": [
         {
-            "name": "singhcloudresume",
+            "name": "[variables('storageaccountname')]",
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2019-06-01",
             "tags": {
-                "displayName": "singhcloudresume"
+                "displayName": "[variables('storageaccountname')]"
             },
             "location": "[resourceGroup().location]",
             "kind": "StorageV2",
@@ -20,59 +34,59 @@
             }
         },
         {
-            "name": "functionserverfarm",
+            "name": "[variables('serverfarmname')]",
             "type": "Microsoft.Web/serverfarms",
             "apiVersion": "2018-02-01",
             "location": "[resourceGroup().location]",
-            "kind":"linux",
+            "kind": "linux",
             "sku": {
                 "name": "F1",
                 "capacity": 1
             },
             "tags": {
-                "displayName": "functionserverfarm"
+                "displayName": "[variables('serverfarmname')]"
             },
             "properties": {
-                "name": "functionserverfarm"
+                "name": "[variables('serverfarmname')]"
             }
         },
         {
-            "name": "singhcloudresume",
+            "name": "[variables('functionappname')]",
             "type": "Microsoft.Web/sites",
             "apiVersion": "2018-11-01",
             "location": "[resourceGroup().location]",
             "kind": "functionapp,linux",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/serverfarms', 'functionserverfarm')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', 'singhcloudresume')]"
+                "[resourceId('Microsoft.Web/serverfarms', variables('serverfarmname'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageaccountname'))]"
             ],
             "properties": {
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'functionserverfarm')]",
-                "linuxFxVersion":"node|14",
-                "use32BitWorkerProcess":false,
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('serverfarmname'))]",
+                "linuxFxVersion": "node|14",
+                "use32BitWorkerProcess": false,
                 "siteConfig": {
                     "appSettings": [
                         {
                             "name": "AzureWebJobsDashboard",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', 'singhcloudresume', ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', 'singhcloudresume'),'2015-05-01-preview').key1)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageaccountname'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageaccountname')),'2015-05-01-preview').key1)]"
                         },
                         {
                             "name": "AzureWebJobsStorage",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', 'singhcloudresume', ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', 'singhcloudresume'),'2015-05-01-preview').key1)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageaccountname'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageaccountname')),'2015-05-01-preview').key1)]"
                         },
                         {
                             "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', 'singhcloudresume', ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', 'singhcloudresume'),'2015-05-01-preview').key1)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageaccountname'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageaccountname')),'2015-05-01-preview').key1)]"
                         },
                         {
                             "name": "WEBSITE_CONTENTSHARE",
-                            "value": "[toLower('singhcloudresume')]"
+                            "value": "[toLower(variables('storageaccountname'))]"
                         },
                         {
                             "name": "FUNCTIONS_EXTENSION_VERSION",
                             "value": "~3"
                         },
-                        
+
                         // {
                         //     "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
                         //     "value": "[reference(resourceId('microsoft.insights/components/', 'applicationInsightsName'), '2015-05-01').InstrumentationKey]"
@@ -86,7 +100,7 @@
             }
         },
         {
-            "name": "singhcloudresumedb",
+            "name": "[variables('cosmosaccountname')]",
             "type": "Microsoft.DocumentDB/databaseAccounts",
             "apiVersion": "2019-12-12",
             "location": "[resourceGroup().location]",
@@ -110,6 +124,84 @@
                 "enableMultipleWriteLocations": false,
                 "capabilities": []
             }
+        },
+        {
+            "type": "Microsoft.Cdn/profiles",
+            "apiVersion": "2020-04-15",
+            "name": "[variables('cdnprofilename')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+            },
+            "sku": {
+                "name": "Standard_Akamai"
+            },
+            "resources": [
+                {
+                    "type": "endpoints",
+                    "apiVersion": "2020-04-15",
+                    "name": "[variables('cdnendpointname')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Cdn/profiles', variables('cdnprofilename'))]"
+                    ],
+                    "properties": {
+                        "isHttpAllowed": true,
+                        "isHttpsAllowed": true,
+                        "contentTypesToCompress": [
+                            "application/eot",
+                            "application/font",
+                            "application/font-sfnt",
+                            "application/javascript",
+                            "application/json",
+                            "application/opentype",
+                            "application/otf",
+                            "application/pkcs7-mime",
+                            "application/truetype",
+                            "application/ttf",
+                            "application/vnd.ms-fontobject",
+                            "application/xhtml+xml",
+                            "application/xml",
+                            "application/xml+rss",
+                            "application/x-font-opentype",
+                            "application/x-font-truetype",
+                            "application/x-font-ttf",
+                            "application/x-httpd-cgi",
+                            "application/x-javascript",
+                            "application/x-mpegurl",
+                            "application/x-opentype",
+                            "application/x-otf",
+                            "application/x-perl",
+                            "application/x-ttf",
+                            "font/eot",
+                            "font/ttf",
+                            "font/otf",
+                            "font/opentype",
+                            "image/svg+xml",
+                            "text/css",
+                            "text/csv",
+                            "text/html",
+                            "text/javascript",
+                            "text/js",
+                            "text/plain",
+                            "text/richtext",
+                            "text/tab-separated-values",
+                            "text/xml",
+                            "text/x-script",
+                            "text/x-component",
+                            "text/x-java-source"
+                        ],
+                        "origins": [
+                            {
+                                "name": "origin1",
+                                "properties": {
+                                    "hostName": "[replace(replace(reference(resourceId('Microsoft.Storage/storageAccounts',variables('storageaccountname'))).primaryEndpoints.blob,'https://',''),'/','')]"
+                                }
+                            }
+                        ]
+                    }
+                }
+
+            ]
         }
     ],
     "outputs": {}

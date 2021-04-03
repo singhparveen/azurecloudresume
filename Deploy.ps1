@@ -19,4 +19,4 @@ else {
 
 $ResourceGroupName = "ps-cloudresume-rg"
 # trigger the deployment in the resource group name provided earlier
-New-AzResourceGroupDeployment -ResourceGroupname $ResourceGroupName -TemplateFile .\resources.json
+New-AzResourceGroupDeployment -ResourceGroupname $ResourceGroupName -TemplateFile .\resources.json -TemplateParameterFile .\resources.parameters.json

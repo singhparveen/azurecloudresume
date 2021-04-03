@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "AzureResume-FrontEnd",
+			"path": "..\\AzureResume-FrontEnd"
+		}
+	],
+	"settings": {}
+}
